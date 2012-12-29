@@ -3,7 +3,7 @@
 # Based on GAppProxy 2.0.0 by Du XiaoGang <dugang@188.com>
 # Based on WallProxy 0.4.0 by Hust Moon <www.ehust@gmail.com>
 # Contributor:
-#      Phus Lu        <phus.lu@gmail.com>
+#      Phus Lu        <phus.lu@gmail.com>  (Author)
 #      Hewig Xu       <hewigovens@gmail.com>
 #      Ayanamist Yang <ayanamist@gmail.com>
 #      Max Lv         <max.c.lv@gmail.com>
@@ -11,6 +11,7 @@
 #      Yonsm          <YonsmGuo@gmail.com>
 #      Ming Bai       <mbbill@gmail.com>
 #      Bin Yu         <yubinlove1991@gmail.com>
+#      Wang Wei Qiang <wwqgtxx@gmail.com>
 
 __version__ = '2.1.11'
 __config__  = 'proxy.ini'
@@ -753,6 +754,7 @@ class Common(object):
         info = ''
         info += '------------------------------------------------------\n'
         info += 'GoAgent Version    : %s (python/%s gevent/%s pyopenssl/%s)\n' % (__version__, sys.version.partition(' ')[0], getattr(gevent, '__version__', None), (OpenSSL.version.__version__ if OpenSSL else 'Disabled'))
+        info += 'GoAgent Author     : Phus Lu\n'
         info += 'Listen Address     : %s:%d\n' % (self.LISTEN_IP,self.LISTEN_PORT)
         info += 'Local Proxy        : %s:%s\n' % (self.PROXY_HOST, self.PROXY_PORT) if self.PROXY_ENABLE else ''
         info += 'Debug INFO         : %s\n' % self.LISTEN_DEBUGINFO if self.LISTEN_DEBUGINFO else ''
@@ -861,7 +863,7 @@ class RangeFetch(object):
                 response_headers['Content-Range']  = 'bytes %s-%s/%s' % (start, length-1, length)
                 response_headers['Content-Length'] = str(length-start)
 
-        logging.info('>>>>>>>>>>>>>>> Range Fetch started(%r) %d-%d', self.url, start, end)
+        logging.info('GAE >>>>>>>>>>>>>>> Range Fetch started(%r) %d-%d', self.url, start, end)
         self._sock.sendall('HTTP/1.1 %s\r\n%s\r\n' % (response_status, ''.join('%s: %s\r\n' % (k.title(),v) for k,v in response_headers.items())))
 
         queues = [gevent.queue.Queue() for _ in range(end+1, length, self.maxsize)]
@@ -884,7 +886,7 @@ class RangeFetch(object):
                     if data is StopIteration:
                         break
                     self._sock.sendall(data)
-            logging.info('>>>>>>>>>>>>>>> Range Fetch ended(%r)', urlparse.urlparse(self.url).netloc)
+            logging.info('GAE >>>>>>>>>>>>>>> Range Fetch ended(%r)', urlparse.urlparse(self.url).netloc)
         except socket.error as e:
             self._stopped = True
             if e[0] not in (10053, errno.EPIPE):
@@ -915,7 +917,7 @@ class RangeFetch(object):
                     break
                 elif 300 <= response.status < 400:
                     self.url = response.getheader('Location')
-                    logging.info('Range Fetch Redirect(%r)', self.url)
+                    logging.info('GAE Range Fetch Redirect(%r)', self.url)
                     response.close()
                     continue
                 else:
@@ -929,7 +931,7 @@ class RangeFetch(object):
                 logging.error('Range Fetch "%s %s" failed: response headers=%s', self.method, self.url, response.msg)
                 return
             content_length = int(response.getheader('Content-Length',0))
-            logging.info('>>>>>>>>>>>>>>> [thread %s] %s %s', id(gevent.getcurrent()), content_length, content_range)
+            logging.info('GAE >>>>>>>>>>>>>>> [thread %s] %s %s', id(gevent.getcurrent()), content_length, content_range)
 
             left = content_length
             while 1:
@@ -987,6 +989,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
                                     need_switch = True
                                     break
                             if need_switch:
+                                logging.error('seems google_cn is down, should switch to google_hk')
                                 common.GAE_PROFILE = 'google_hk'
                                 common.GOOGLE_MODE = 'https'
                                 common.GAE_FETCHSERVER = '%s://%s.appspot.com%s?' % (common.GOOGLE_MODE, common.GAE_APPIDS[0], common.GAE_PATH)
@@ -1043,7 +1046,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
         host, _, port = path.rpartition(':')
         port = int(port)
         if host.endswith(common.GOOGLE_SITES) and host not in common.GOOGLE_WITHGAE:
-            logging.info('%s:%s "%s %s:%d HTTP/1.1" - -' % (remote_addr, remote_port, method, host, port))
+            logging.info('HOST %s:%s "%s %s:%d HTTP/1.1" - -' % (remote_addr, remote_port, method, host, port))
             http_headers = ''.join('%s: %s\r\n' % (k, v) for k, v in headers.iteritems())
             sock.send('HTTP/1.1 200 OK\r\n\r\n')
             if not common.PROXY_ENABLE:
@@ -1076,7 +1079,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
             return
         else:
             keyfile, certfile = CertUtil.get_cert(host)
-            logging.info('%s:%s "%s %s:%d HTTP/1.1" - -' % (remote_addr, remote_port, method, host, port))
+            logging.info('GAE %s:%s "%s %s:%d HTTP/1.1" - -' % (remote_addr, remote_port, method, host, port))
             sock.sendall('HTTP/1.1 200 OK\r\n\r\n')
             __realsock = sock
             __realrfile = rfile
@@ -1128,7 +1131,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
                 return
             if response.status in (400, 405):
                 common.GAE_CRLF = 0
-            logging.info('%s:%s "%s %s HTTP/1.1" %s %s' % (remote_addr, remote_port, method, path, response.status, response.msg.get('Content-Length', '-')))
+            logging.info('GAE %s:%s "%s %s HTTP/1.1" %s %s' % (remote_addr, remote_port, method, path, response.status, response.msg.get('Content-Length', '-')))
             wfile = sock.makefile('wb', 0)
             wfile.write('HTTP/1.1 %s\r\n%s\r\n' % (response.status, ''.join('%s: %s\r\n' % (k.title(), v) for k, v in response.getheaders() if k != 'transfer-encoding')))
             wfile.write(response.read())
@@ -1156,7 +1159,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
             m = re.search('bytes=(\d+)-', headers['Range'])
             start = int(m.group(1) if m else 0)
             headers['Range'] = 'bytes=%d-%d' % (start, start+common.AUTORANGE_MAXSIZE-1)
-            logging.info('autorange range=%r match url=%r', headers['Range'], path)
+            logging.info('GAE autorange range=%r match url=%r', headers['Range'], path)
         elif host.endswith(common.AUTORANGE_HOSTS_TAIL):
             try:
                 pattern = (p for p in common.AUTORANGE_HOSTS if host.endswith(p) or fnmatch.fnmatch(host, p)).next()
@@ -1195,7 +1198,7 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
                 common.GAE_APPIDS.append(common.GAE_APPIDS.pop(0))
                 common.GAE_FETCHSERVER = '%s://%s.appspot.com%s?' % (common.GOOGLE_MODE, common.GAE_APPIDS[0], common.GAE_PATH)
                 http.dns[urlparse.urlparse(common.GAE_FETCHSERVER).netloc] = common.GOOGLE_HOSTS
-                logging.info('APPID Over Quota,Auto Switch to [%s]' % (common.GAE_APPIDS[0]))
+                logging.info('GAE APPID Over Quota,Auto Switch to [%s]' % (common.GAE_APPIDS[0]))
             # bad request, disable CRLF injection
             if response.app_status in (400, 405):
                 http.crlf = 0
@@ -1203,13 +1206,13 @@ def gaeproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()}):
             wfile = sock.makefile('wb', 0)
 
             if response.app_status != 200:
-                logging.info('%s:%s "%s %s HTTP/1.1" %s -' % (remote_addr, remote_port, method, path, response.status))
+                logging.info('GAE %s:%s "%s %s HTTP/1.1" %s -' % (remote_addr, remote_port, method, path, response.status))
                 wfile.write('HTTP/1.1 %s\r\n%s\r\n' % (response.status, ''.join('%s: %s\r\n' % (k.title(), v) for k, v in response.getheaders() if k != 'transfer-encoding')))
                 wfile.write(response.read())
                 response.close()
                 return
 
-            logging.info('%s:%s "%s %s HTTP/1.1" %s %s' % (remote_addr, remote_port, method, path, response.status, response.getheader('Content-Length', '-')))
+            logging.info('GAE %s:%s "%s %s HTTP/1.1" %s %s' % (remote_addr, remote_port, method, path, response.status, response.getheader('Content-Length', '-')))
 
             if response.status == 206:
                 fetchservers = [re.sub(r'//\w+\.appspot\.com', '//%s.appspot.com' % x, common.GAE_FETCHSERVER) for x in common.GAE_APPIDS]
@@ -1291,7 +1294,7 @@ def paasproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()})
         host, _, port = path.rpartition(':')
         port = int(port)
         keyfile, certfile = CertUtil.get_cert(host)
-        logging.info('%s:%s "%s:%d HTTP/1.1" - -' % (address[0], address[1], host, port))
+        logging.info('PAAS %s:%s "%s:%d HTTP/1.1" - -' % (address[0], address[1], host, port))
         sock.sendall('HTTP/1.1 200 OK\r\n\r\n')
         __realsock = sock
         __realrfile = rfile
@@ -1321,7 +1324,7 @@ def paasproxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()})
             content_length = int(headers.get('Content-Length', 0))
             payload = rfile.read(content_length) if content_length else ''
             response = paas_urlfetch(method, path, headers, payload, common.PAAS_FETCHSERVER, password=common.PAAS_PASSWORD)
-            logging.info('%s:%s "%s %s HTTP/1.1" %s -' % (remote_addr, remote_port, method, path, response.status))
+            logging.info('PAAS %s:%s "%s %s HTTP/1.1" %s -' % (remote_addr, remote_port, method, path, response.status))
         except socket.error as e:
             if e.reason[0] not in (11004, 10051, 10060, 'timed out', 10054):
                 raise
@@ -1373,7 +1376,7 @@ def socks5proxy_handler(sock, address, hls={'setuplock':gevent.coros.Semaphore()
         hls['setup'] = True
 
     remote_addr, remote_port = address
-    logging.info('%s:%s "POST %s SOCKS/5" - -' % (remote_addr, remote_port, common.SOCKS5_FETCHSERVER))
+    logging.info('SOCK5 %s:%s "POST %s SOCKS/5" - -' % (remote_addr, remote_port, common.SOCKS5_FETCHSERVER))
     scheme, netloc, path, params, query, fragment = urlparse.urlparse(common.SOCKS5_FETCHSERVER)
     if re.search(r':\d+$', netloc):
         host, _, port = netloc.rpartition(':')
@@ -1514,12 +1517,12 @@ def pacserver_handler(sock, address, hls={}):
     if path != '/'+common.PAC_FILE or not os.path.isfile(filename):
         wfile.write('HTTP/1.1 404\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n404 Not Found')
         wfile.close()
-        logging.info('%s:%s "%s %s HTTP/1.1" 404 -' % (remote_addr, remote_port, method, path))
+        logging.info('PAC %s:%s "%s %s HTTP/1.1" 404 -' % (remote_addr, remote_port, method, path))
         return
     with open(filename, 'rb') as fp:
         data = fp.read()
         wfile.write('HTTP/1.1 200\r\nContent-Type: application/x-ns-proxy-autoconfig\r\nConnection: close\r\n\r\n')
-        logging.info('%s:%s "%s %s HTTP/1.1" 200 -' % (remote_addr, remote_port, method, path))
+        logging.info('PAC %s:%s "%s %s HTTP/1.1" 200 -' % (remote_addr, remote_port, method, path))
         wfile.write(data)
         wfile.close()
     sock.close()
@@ -1605,8 +1608,15 @@ def pre_start():
                     common.CONFIG.write(fp)
         if '360safe' in os.popen('tasklist').read().lower():
             lineno = [sys._getframe().f_lineno-1, sys._getframe().f_lineno+2]
+            logging.error('Found 360safe Is Running,Please Kill 360safe!Then you can run GoAgent.')
             #ctypes.windll.user32.MessageBoxW(None, u'某些安全软件可能和本软件存在冲突.\n可以删除proxy.py第%r行或者暂时退出安全软件来继续运行' % lineno, u'建议', 0)
             #sys.exit(0)
+        if '360sd' in os.popen('tasklist').read().lower():
+            lineno = [sys._getframe().f_lineno-1, sys._getframe().f_lineno+2]
+            logging.error('Found 360sd Is Running,Please Kill 360sd!Then you can run GoAgent.')
+        if '360broswer' in os.popen('tasklist').read().lower():
+            lineno = [sys._getframe().f_lineno-1, sys._getframe().f_lineno+2]
+            logging.error('Found 360broswer Is Running,Please Kill 360broswer!Then you can run GoAgent.')
 
 def main():
     global __file__
