@@ -269,6 +269,13 @@ def paas_application(environ, start_response):
                 yield data
         except httplib.HTTPException as e:
             raise
+			
+def gae_get(environ, start_response):
+    timestamp = long(os.environ['CURRENT_VERSION_ID'].split('.')[1])/pow(2,28)
+    ctime = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp+8*3600))
+    html = u'GoAgent Python Server %s \u5df2\u7ecf\u5728\u5de5\u4f5c\u4e86\uff0c\u90e8\u7f72\u65f6\u95f4 %s\n' % (__version__, ctime)
+    start_response('200 OK', [('Content-Type', 'text/plain; charset=utf-8')])
+    yield html.encode('utf8')
 
 def gae_application(environ, start_response):
     if environ['REQUEST_METHOD'] == 'GET':
@@ -276,11 +283,7 @@ def gae_application(environ, start_response):
             start_response('204 No Content', [])
             yield ''
         else:
-            timestamp = long(os.environ['CURRENT_VERSION_ID'].split('.')[1])/pow(2,28)
-            ctime = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp+8*3600))
-            html = u'GoAgent Python Server %s \u5df2\u7ecf\u5728\u5de5\u4f5c\u4e86\uff0c\u90e8\u7f72\u65f6\u95f4 %s\n' % (__version__, ctime)
-            start_response('200 OK', [('Content-Type', 'text/plain; charset=utf-8')])
-            yield html.encode('utf8')
+            yield gae_get(environ, start_response)
         raise StopIteration
 
     # inflate = lambda x:zlib.decompress(x, -15)
@@ -302,12 +305,12 @@ def gae_application(environ, start_response):
 
     if __password__ and __password__ != kwargs.get('password', ''):
         start_response('403 Forbidden', [('Content-Type', 'text/html')])
-        yield error_html('403', 'Wrong password', description='GoAgent proxy.ini password is wrong!')
+        yield error_html('403', 'Wrong password', description='Your password in proxy.ini for GoAgent is wrong!')
         raise StopIteration
 
     if __hostsdeny__ and urlparse.urlparse(url).netloc.endswith(__hostsdeny__):
         start_response('403 Forbidden', [('Content-Type', 'text/html')])
-        yield error_html('403', 'Hosts Deny', description='url=%r' % url)
+        yield error_html('403', 'Hosts Deny.Your GoAgent Fetch Server Do Not Allow You To Visit This WebSite', description='your request url=%r' % url)
         raise StopIteration
 
     fetchmethod = getattr(urlfetch, method, '')
