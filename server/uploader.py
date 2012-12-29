@@ -4,16 +4,23 @@
 # Phus Lu <phus.lu@gmail.com>
 # Wang Wei Qiang <wwqgtxx@gmail.com>
 
-__uploaddir__ = 'python'
+__uploaddir__ = 'python' # Which Dir You Need To Upload
+__proxy__= '' # Your Proxy Server Address
+__need_cookies__= False # If You Want Don't Remove .appcfg_cookies,Please Set "__need_cookies__= True"
+
 
 import sys,os
-os.remove('.appcfg_cookies') 
 print('===============================================================')
 print('GoAgent服务端部署程序, 开始上传'+__uploaddir__+'服务端')
 print('===============================================================')
 print('')
 print('请输入您的appid, 多个appid请用|号隔开')
+if __need_cookies__== False:
+    if os.path.isfile('.appcfg_cookies'):
+        os.remove('.appcfg_cookies') 
 os.putenv('uploaddir', __uploaddir__)
+os.putenv('http_proxy', __proxy__)
+os.putenv('https_proxy', __proxy__)
 sys.path.insert(0, 'uploader.zip')
 import appcfg;appcfg.main()
 print('')

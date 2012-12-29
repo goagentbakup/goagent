@@ -14,7 +14,7 @@
 #      Wang Wei Qiang <wwqgtxx@gmail.com>
 
 __version__ = '2.1.11'
-__config__  = 'proxy2.ini'
+__config__  = 'proxy.ini'
 __bufsize__ = 1024*1024
 
 import sys
