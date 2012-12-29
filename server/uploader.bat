@@ -3,9 +3,7 @@
 ( 
     @cd /d "%~dp0" 
 ) && (
-    if exist ".appcfg_cookies" (@del /f /q .appcfg_cookies)
-) && (
-    set PYTHONSCRIPT="import sys,os;execfile('uploader.py');"
+    set PYTHONSCRIPT="import os;execfile('uploader.py');"
 ) && (
     "..\local\proxy.exe"
 )
